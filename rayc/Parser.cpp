@@ -1112,11 +1112,9 @@ Node *RayParser::return_stmt() {
     // 'return'
     if (!accept(RETURN)) return nullptr;
     
-    // 'return' expr
+    // expr
     Node *node;
-    if (!(node = this->expr())) return nullptr;
-    
-//    if (!accept(SEMICOLON)) return error("missing semicolon");
+    if (!(node = this->expr())) return (Node*)new ReturnNode(new IDNode("void"));
     
     return (Node *) new ReturnNode(node);
 }

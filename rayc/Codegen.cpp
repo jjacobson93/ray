@@ -478,12 +478,11 @@ void *RayCodegenVisitor::visitFunction(FunctionNode *node, RayCodegenContext *ct
     llvm::BasicBlock *retBlock = nullptr;
     if (rettype != VoidTy) {
         retval = Build(ctx).CreateAlloca(rettype, 0, "retval");
-        retBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "return", func);
-        ctx->fcx->retBlock = retBlock;
         ctx->fcx->retAlloca = retval;
-    } else {
-        std::cout << "What is the return type??" << std::endl;
     }
+    
+    retBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "return", func);
+    ctx->fcx->retBlock = retBlock;
     
     // Name params and create argument allocas
     int idx = 0;
@@ -505,8 +504,8 @@ void *RayCodegenVisitor::visitFunction(FunctionNode *node, RayCodegenContext *ct
     // body
     this->visit(node->block, ctx);
     
+    ctx->bb = retBlock;
     if (rettype != VoidTy) {
-        ctx->bb = retBlock;
         retval = Build(ctx).CreateLoad(retval);
         Build(ctx).CreateRet(retval);
     } else {
@@ -532,11 +531,19 @@ void *RayCodegenVisitor::visitReturn(ReturnNode *node, RayCodegenContext *ctx) {
     
     void *retval = this->visit(node->expr, ctx);
     if (node->expr->type == RAY_NODE_ID) {
-        retval = Build(ctx).CreateLoad((*ctx->scope)[*(std::string*)retval]);
+        if ((*(std::string*)retval).compare("void") != 0) {
+            retval = Build(ctx).CreateLoad((*ctx->scope)[*(std::string*)retval]);
+        } else {
+            // we don't want to load if it's void
+            retval = nullptr;
+        }
     }
     
-    Build(ctx).CreateStore((llvm::Value*)retval, retAlloca);
-    Build(ctx).CreateBr(ctx->fcx->retBlock);
+    // retval is a nullptr if it's void
+    if (retval) {
+        Build(ctx).CreateStore((llvm::Value*)retval, retAlloca);
+        Build(ctx).CreateBr(ctx->fcx->retBlock);
+    }
     
     return nullptr;
 }
@@ -562,17 +569,17 @@ void *RayCodegenVisitor::visitIf(IfNode *node, RayCodegenContext *ctx) {
     
     // create blocks
     llvm::Function *func = Build(ctx).GetInsertBlock()->getParent();
-    llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.then", func);
+    llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.then", func, ctx->fcx->retBlock);
     llvm::BasicBlock *elseBlock = nullptr;
     llvm::BasicBlock *endBlock = nullptr;
     
     if (node->elseBlock) {
-        elseBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.else", func);
+        elseBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.else", func, ctx->fcx->retBlock);
         
         // create conditional break
         Build(ctx).CreateCondBr(condValue, thenBlock, elseBlock);
     } else {
-        endBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.end", func);
+        endBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.end", func, ctx->fcx->retBlock);
         
         // create conditional break
         Build(ctx).CreateCondBr(condValue, thenBlock, endBlock);
@@ -582,50 +589,33 @@ void *RayCodegenVisitor::visitIf(IfNode *node, RayCodegenContext *ctx) {
     
     // emit then
     ctx->bb = thenBlock;
-//    Build(ifCtx).SetInsertPoint(thenBlock);
 
-    ctx->fcx->mcx->module->dump();
     // visit block
     this->visit(node->block, ctx);
-    ctx->fcx->mcx->module->dump();
-//
-//    builder.CreateBr(mergeBlock);
-//    
-//    // Codegen of block can change the current block, update thenBlock for the PHI.
-//    thenBlock = builder.GetInsertBlock();
-//    
-//    // emit else
-//    func->getBasicBlockList().push_back(elseBlock);
+    if (!ctx->fcx->retAlloca) {
+        Build(ctx).CreateBr(ctx->fcx->retBlock);
+    }
+
+    // pop off 'if' scope
     ctx->popOffScope();
+    
+    // visit 'else' block if it exists
     if (node->elseBlock) {
-//        ifCtx->bb = elseBlock;
-//        Build(ifCtx).SetInsertPoint(elseBlock);
-//        delete ctx->scope;
-        
         RayCodegenScope *elseScope = new RayCodegenScope(ctx->scope);
         ctx->scope = elseScope;
         ctx->bb = elseBlock;
         this->visit(node->elseBlock, ctx);
-        ctx->fcx->mcx->module->dump();
+        
+        // break to return if it's a void function
+        if (!ctx->fcx->retAlloca) {
+            Build(ctx).CreateBr(ctx->fcx->retBlock);
+        }
+        
         ctx->popOffScope();
-//        Build(elseCtx).CreateBr(endBlock);
     } else {
         ctx->bb = endBlock;
     }
-//
-//    builder.CreateBr(mergeBlock);
-//    
-//    // Codegen of elseBlock can change the current block, update elseBlock for the PHI.
-//    elseBlock = builder.GetInsertBlock();
-//    
-//    // emit merge block
-//    func->getBasicBlockList().push_back(mergeBlock);
-//    builder.SetInsertPoint(mergeBlock);
-//    llvm::PHINode *pn = builder.CreatePHI(<#llvm::Type *Ty#>, <#unsigned int NumReservedValues#>)
-    
-    ctx->fcx->mcx->module->dump();
-    
-//    ctx->bb = endBlock;
+
     
     return endBlock;
 }
