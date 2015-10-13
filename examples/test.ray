@@ -1,0 +1,22 @@
+#fn print(s : string) {
+#	printf("%s\n", s)
+#}
+
+#fn len(s : string) -> int {
+#	return strlen(s)
+#}
+
+fn reverse(s : str, len : int) {
+	var n = s
+	var i = 0
+	while i < len {
+		n[i] = s[l - i - 1]
+		i++
+	}
+}
+
+fn main() -> int {
+	var s = "Hello"
+	print(s, 5)
+	return 0
+}
