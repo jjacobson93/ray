@@ -38,8 +38,10 @@ typedef enum {
     RAY_NODE_ARRAY,
     RAY_NODE_HASH,
     RAY_NODE_FUNCTION,
+    RAY_NODE_EXTERN,
     RAY_NODE_TYPE,
-    RAY_NODE_SLOT
+    RAY_NODE_SLOT,
+    RAY_NODE_SEQUENCE
 } RayNodeType;
 
 class Node {
@@ -85,7 +87,7 @@ public:
 class IDNode : public Node {
     
 public:
-    std::string val;
+    std::string *val;
     
     IDNode(std::string val);
 };
@@ -125,9 +127,9 @@ public:
 class StringNode : public Node {
     
 public:
-    std::string val;
+    std::string *val;
     
-    StringNode(std::string val);
+    StringNode(std::string *val);
 };
 
 class BinaryOpNode : public Node {
@@ -189,6 +191,16 @@ public:
     TypeNode(std::vector<Node*> *types);
 };
 
+class ExternNode : public Node {
+    
+public:
+    std::string name;
+    Node *fntype;
+    std::vector<Node*> *params;
+    
+    ExternNode(std::string name, Node *fntype, std::vector<Node*> *params);
+};
+
 class FunctionNode : public Node {
     
 public:
@@ -227,4 +239,13 @@ public:
     
     DeclNode(std::string name, Node *vartype, Node *val);
 };
+
+class SequenceNode : public Node {
+    
+public:
+    std::vector<Node*> *nodes;
+    
+    SequenceNode(std::vector<Node*> *nodes);
+};
+
 #endif /* defined(__rayc__AST__) */

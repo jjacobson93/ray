@@ -33,11 +33,13 @@ public:
     void *visitUnaryOp(UnaryOpNode *node) { return nullptr; }
     void *visitBinaryOp(BinaryOpNode *node) { return nullptr; }
     void *visitFunction(FunctionNode *node) { return nullptr; }
+    void *visitExtern(ExternNode *node) { return nullptr; }
     void *visitArray(ArrayNode *node) { return nullptr; }
     void *visitHash(HashNode *node) { return nullptr; }
     void *visitReturn(ReturnNode *node) { return nullptr; }
     void *visitDecl(DeclNode *node) { return nullptr; }
     void *visitIf(IfNode *node) { return nullptr; }
+    void *visitSequence(SequenceNode *node) { return nullptr; }
 };
 
 #endif /* defined(__rayc__Visitor__) */

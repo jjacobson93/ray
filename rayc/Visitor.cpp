@@ -37,9 +37,11 @@ void *RayVisitor::visit(Node *node) {
         case RAY_NODE_UNARY_OP: VISIT(UnaryOp);
         case RAY_NODE_BINARY_OP: VISIT(BinaryOp);
         case RAY_NODE_FUNCTION: VISIT(Function);
+        case RAY_NODE_EXTERN: VISIT(Extern);
         case RAY_NODE_ARRAY: VISIT(Array);
         case RAY_NODE_HASH: VISIT(Hash);
         case RAY_NODE_RETURN: VISIT(Return);
+        case RAY_NODE_SEQUENCE: VISIT(Sequence);
         default: return NULL;
     }
 }

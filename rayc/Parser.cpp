@@ -206,6 +206,7 @@ Node *RayParser::hash_expr() {
  * | array
  * | hash
  * | function_stmt
+ * | extern_stmt
  * | paren_expr
  */
 Node *RayParser::primary_expr() {
@@ -215,7 +216,7 @@ Node *RayParser::primary_expr() {
     
     switch (peek->type) {
         case RAY_TOKEN_ID: {
-            Node *n = (Node *) new IDNode(next->value);
+            Node *n = (Node *) new IDNode(next->asString());
             n->lineno = lineno; n->offset = offset;
             return n;
         }
@@ -230,7 +231,7 @@ Node *RayParser::primary_expr() {
             return n;
         }
         case RAY_TOKEN_STRING: {
-            Node *n = (Node *) new StringNode(next->asString());
+            Node *n = (Node *) new StringNode(new std::string(next->asString()));
             n->lineno = lineno; n->offset = offset;
             return n;
         }
@@ -250,8 +251,11 @@ Node *RayParser::primary_expr() {
             return this->hash_expr();
         case RAY_TOKEN_FN:
             return this->function_stmt();
+        case RAY_TOKEN_EXTERN:
+            return this->extern_stmt();
+        default:
+            return this->paren_expr();
     }
-    return this->paren_expr();
 }
 
 /*
@@ -619,7 +623,7 @@ Node *RayParser::type_expr() {
     
     if (is(ID)) {
         types = new std::vector<Node*>();
-        Node *idnode = (Node *)new IDNode(next->value);
+        Node *idnode = (Node *)new IDNode(next->asString());
         idnode->lineno = lineno;
         idnode->offset = offset;
         types->push_back(idnode);
@@ -762,8 +766,8 @@ ArgsNode *RayParser::call_args() {
             // TODO: assert string or id
             if (accept(COLON)) {
                 Node *val = this->expr();
-                std::string str = ((IDNode *)node)->val;
-                (*args->hash)[str] = val;
+                std::string *str = ((IDNode *)node)->val;
+                (*args->hash)[*str] = val;
             }
             args->vec->push_back(node);
         } else {
@@ -999,6 +1003,51 @@ Node *RayParser::function_stmt() {
     if (!(body = this->block())) return error("missing function body");
     
     return (Node *) new FunctionNode(name, type, body, params);
+}
+
+/*
+ * 'extern' id? '(' args? ')' ('->' id)?
+ */
+
+Node *RayParser::extern_stmt() {
+    BlockNode *body;
+    std::vector<Node*> *params;
+    Node *type = nullptr;
+    debug("extern_stmt");
+    context("extern statement");
+    
+    // 'extern'
+    if (!accept(EXTERN)) return nullptr;
+    
+    // id
+    std::string name;
+    if (is(ID)) name = next->value;
+    else name = "<anonymous>";
+    
+    // '('
+    if (accept(LPAREN)) {
+        // params?
+        if (!(params = this->function_params())) params = new std::vector<Node*>();
+        
+        // ')'
+        context("extern");
+        if (!accept(RPAREN)) return this->error("missing closing ')'");
+    } else {
+        return error("missing '('");
+    }
+    
+    context("extern");
+    
+    // ('->' type_expr)?
+    if (accept(ARROW)) {
+        type = this->type_expr();
+        if (!type) return this->error("missing return type");
+    }
+    
+    // Must not have a return type (void)
+    if (!type) type = (Node *)new TypeNode(new std::vector<Node*>());
+    
+    return (Node *) new ExternNode(name, type, params);
 }
 
 /*

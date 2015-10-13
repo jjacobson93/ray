@@ -1,0 +1,118 @@
+paren_expr := '(' expr ')'
+
+arg_list := 
+      expr ','?
+    | expr ',' arg_list
+
+array_expr := '[' arg_list? ']'
+
+hash_pairs := 
+      id ':' expr 
+    | id ':' expr ',' hash_pairs
+
+hash_expr := '{' hash_pairs? '}'
+
+primary_expr :=
+      id
+    | int
+    | float
+    | string
+    | bool
+    | char
+    | array
+    | hash
+    | function_stmt
+    | extern_stmt
+    | paren_expr
+
+pow_expr :=
+      call_expr
+    | call_expr '**' call_expr
+
+postfix_expr :=
+      pow_expr
+    | pow_expr '++'
+    | pow_expr '--'
+
+unary_expr :=
+      '++' unary_expr
+    | '--' unary_expr
+    | '~' unary_expr
+    | '+' unary_expr
+    | '-' unary_expr
+    | '!' unary_expr
+    | primary_expr
+
+multiplicative_expr := unary_expr (('* | '/' | '%') unary_expr)*
+additive_expr       := multiplicative_expr (('+ | '-') multiplicative_expr)*
+shift_expr          := additive_expr (('<<' | '>>') additive_expr)*
+relational_expr     := shift_expr (('<' | '<=' | '>' | '>=') shift_expr)*
+equality_expr       := relational_expr (('==' | '!=') relational_expr)*
+bitwise_and_expr    := equality_expr ('&' equality_expr)*
+bitwise_xor_expr    := bitwise_and_expr ('^' bitwise_and_expr)*
+bitwise_or_expr     := bitwise_xor_expr ('|' bitwise_xor_expr)*
+logical_and_expr    := bitswise_or_expr ('&&' bitswise_or_expr)*
+logical_or_expr     := logical_and_expr ('||' logical_and_expr)*
+
+type_expr := id | '(' type_expr (',' type_expr)+ ')'
+
+function_params := (id ':' type ('=' expr)? (',' id ':' type ('=' expr)?)*)
+
+slot_access_expr :=
+      primary_expr
+    | primary_expr call_expr
+
+call_args := expr (',' expr)*
+call_expr :=
+      slot_access_expr '(' args? ')'
+    | slot_access_expr '.' call_expr
+    | slot_access_expr '?.' call_expr
+    | slot_access_expr
+
+assignment_expr :=
+      logical_or_expr
+    | 'var' call_expr '=' not_expr
+    | call_expr '=' not_expr
+    | call_expr '+=' not_expr
+    | call_expr '-=' not_expr
+    | call_expr '/=' not_expr
+    | call_expr '*=' not_expr
+    | call_expr '||=' not_expr
+
+not_expr :=
+      '!' not_expr
+    | assignment_expr
+
+expr := not_expr
+
+expr_stmt := expr
+ 
+function_stmt := 'fn' id? '(' args? ')' ('->' id)? block
+
+extern_stmt := 'extern' id? '(' args? ')' ('->' id)?
+
+if_stmt :=
+    ('if' | 'unless') expr block
+    ('else' ( if_stmt | block )) ?
+
+while_stmt := ('while' | 'until' | 'loop') expr block
+
+return_stmt :=
+      'return' expr
+    | 'return'
+
+stmt :=
+      simple_stmt
+    | compound_stmt
+
+simple_stmt := expr_stmt (';' expr_stmt)* (';' | NEWLINE)
+
+compound_stmt :=
+      if_stmt
+    | while_stmt
+    | function_stmt
+    | return_stmt
+
+block := '{' stmt* '}'
+
+program := stmt*

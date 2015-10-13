@@ -50,12 +50,10 @@
 
 #include "Visitor.h"
 
-class RayCodegen {
-    
-public:
-    RayCodegen();
-    void gen(Node *root);
-};
+typedef enum {
+    RAY_TARGET_NATIVE,
+    RAY_TARGET_JS
+} RayTarget;
 
 class RayModuleContext {
     
@@ -98,6 +96,14 @@ public:
     RayCodegenScope *popOffScope();
 };
 
+class RayCodegen {
+    
+public:
+    RayCodegen();
+    void* gen(Node *root, RayTarget target);
+    void builtins(RayCodegenContext *ctx);
+};
+
 class RayCodegenVisitor : public RayVisitor {
 
 public:
@@ -117,11 +123,13 @@ public:
     void *visitUnaryOp(UnaryOpNode *node, RayCodegenContext *ctx);
     void *visitBinaryOp(BinaryOpNode *node, RayCodegenContext *ctx);
     void *visitFunction(FunctionNode *node, RayCodegenContext *ctx);
+    void *visitExtern(ExternNode *node, RayCodegenContext *ctx);
     void *visitArray(ArrayNode *node, RayCodegenContext *ctx);
     void *visitHash(HashNode *node, RayCodegenContext *ctx);
     void *visitReturn(ReturnNode *node, RayCodegenContext *ctx);
     void *visitDecl(DeclNode *node, RayCodegenContext *ctx);
     void *visitIf(IfNode *node, RayCodegenContext *ctx);
+    void *visitSequence(SequenceNode *node, RayCodegenContext *ctx);
 };
 
 #endif /* defined(__rayc__Codegen__) */

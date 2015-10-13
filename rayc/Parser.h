@@ -59,10 +59,13 @@ public:
     Node *expr();
     Node *expr_stmt();
     Node *function_stmt();
+    Node *extern_stmt();
     Node *if_stmt();
     Node *while_stmt();
     Node *return_stmt();
     Node *stmt();
+    Node *simple_stmt();
+    Node *compound_stmt();
     BlockNode *block();
     BlockNode *program();
     BlockNode *parse();

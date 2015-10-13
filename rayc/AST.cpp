@@ -20,7 +20,7 @@ BlockNode::BlockNode() : Node(0, 0) {
 
 IDNode::IDNode(std::string val) : Node(0, 0) {
     this->type = RAY_NODE_ID;
-    this->val = val;
+    this->val = new std::string(val);
 }
 
 IntNode::IntNode(long val) : Node(0, 0) {
@@ -43,7 +43,7 @@ CharNode::CharNode(char val) : Node(0, 0) {
     this->val = val;
 }
 
-StringNode::StringNode(std::string val) : Node(0, 0) {
+StringNode::StringNode(std::string *val) : Node(0, 0) {
     this->type = RAY_NODE_STRING;
     this->val = val;
 }
@@ -115,6 +115,13 @@ TypeNode::TypeNode(std::vector<Node*> *types) : Node(0, 0) {
     this->types = types;
 }
 
+ExternNode::ExternNode(std::string name, Node *fntype, std::vector<Node*> *params) : Node(0, 0) {
+    this->type = RAY_NODE_EXTERN;
+    this->name = name;
+    this->fntype = fntype;
+    this->params = params;
+}
+
 FunctionNode::FunctionNode(std::string name, Node *fntype, BlockNode *block, std::vector<Node*> *params) : Node(0, 0) {
     this->type = RAY_NODE_FUNCTION;
     this->name = name;
@@ -128,4 +135,8 @@ DeclNode::DeclNode(std::string name, Node *vartype, Node *val=nullptr) : Node(0,
     this->name = name;
     this->vartype = vartype;
     this->val = val;
+}
+
+SequenceNode::SequenceNode(std::vector<Node*> *nodes) : Node(0, 0) {
+    this->nodes = nodes;
 }

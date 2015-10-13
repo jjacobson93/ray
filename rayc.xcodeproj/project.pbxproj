@@ -12,8 +12,12 @@
 		320951471A042FE9007BE338 /* Token.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 320951451A042FE9007BE338 /* Token.cpp */; };
 		3209514A1A042FF5007BE338 /* Parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 320951481A042FF5007BE338 /* Parser.cpp */; };
 		3209514D1A05BFF3007BE338 /* AST.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3209514B1A05BFF3007BE338 /* AST.cpp */; };
+		321084DD1A185CEC001FAE42 /* libclang.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 321084DC1A185CEC001FAE42 /* libclang.dylib */; };
+		321084E31A186D29001FAE42 /* JSCodegen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 321084E11A186D29001FAE42 /* JSCodegen.cpp */; };
+		325C57DC1A10821C00DCFC61 /* Backend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 325C57DA1A10821C00DCFC61 /* Backend.cpp */; };
+		325C57E21A10823500DCFC61 /* LLCWrapper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 325C57E01A10823500DCFC61 /* LLCWrapper.cpp */; };
+		327F5D3F1A181E6500EC6604 /* libLLVM-3.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 32E34B461A05FFB2006D34E6 /* libLLVM-3.5.dylib */; };
 		32E34B451A05FEFF006D34E6 /* Codegen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32E34B431A05FEFF006D34E6 /* Codegen.cpp */; };
-		32E34B471A05FFB2006D34E6 /* libLLVM-3.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 32E34B461A05FFB2006D34E6 /* libLLVM-3.5.dylib */; };
 		32E34B4A1A06013F006D34E6 /* Visitor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32E34B481A06013F006D34E6 /* Visitor.cpp */; };
 /* End PBXBuildFile section */
 
@@ -40,6 +44,15 @@
 		320951491A042FF5007BE338 /* Parser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Parser.h; sourceTree = "<group>"; };
 		3209514B1A05BFF3007BE338 /* AST.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AST.cpp; sourceTree = "<group>"; };
 		3209514C1A05BFF3007BE338 /* AST.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; path = AST.h; sourceTree = "<group>"; };
+		321084DC1A185CEC001FAE42 /* libclang.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libclang.dylib; path = ../../../../../usr/local/Cellar/llvm/3.5.0/lib/libclang.dylib; sourceTree = "<group>"; };
+		321084DE1A186656001FAE42 /* ray_builtins.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ray_builtins.cpp; sourceTree = "<group>"; };
+		321084E11A186D29001FAE42 /* JSCodegen.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSCodegen.cpp; sourceTree = "<group>"; };
+		321084E21A186D29001FAE42 /* JSCodegen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSCodegen.h; sourceTree = "<group>"; };
+		325C57DA1A10821C00DCFC61 /* Backend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Backend.cpp; sourceTree = "<group>"; };
+		325C57DB1A10821C00DCFC61 /* Backend.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Backend.h; sourceTree = "<group>"; };
+		325C57E01A10823500DCFC61 /* LLCWrapper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LLCWrapper.cpp; sourceTree = "<group>"; };
+		325C57E11A10823500DCFC61 /* LLCWrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LLCWrapper.h; sourceTree = "<group>"; };
+		32C0BB231A13333A00338D33 /* ray_grammar.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ray_grammar.txt; sourceTree = "<group>"; };
 		32E34B431A05FEFF006D34E6 /* Codegen.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Codegen.cpp; sourceTree = "<group>"; };
 		32E34B441A05FEFF006D34E6 /* Codegen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Codegen.h; sourceTree = "<group>"; };
 		32E34B461A05FFB2006D34E6 /* libLLVM-3.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libLLVM-3.5.dylib"; path = "../../../../../usr/local/Cellar/llvm/3.5.0/lib/libLLVM-3.5.dylib"; sourceTree = "<group>"; };
@@ -52,7 +65,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				32E34B471A05FFB2006D34E6 /* libLLVM-3.5.dylib in Frameworks */,
+				321084DD1A185CEC001FAE42 /* libclang.dylib in Frameworks */,
+				327F5D3F1A181E6500EC6604 /* libLLVM-3.5.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +79,7 @@
 				3209513A1A042FC5007BE338 /* rayc */,
 				320951391A042FC5007BE338 /* Products */,
 				32E34B461A05FFB2006D34E6 /* libLLVM-3.5.dylib */,
+				321084DC1A185CEC001FAE42 /* libclang.dylib */,
 			);
 			sourceTree = "<group>";
 		};
@@ -82,6 +97,12 @@
 				3209513B1A042FC5007BE338 /* main.cpp */,
 				3209514B1A05BFF3007BE338 /* AST.cpp */,
 				3209514C1A05BFF3007BE338 /* AST.h */,
+				325C57DA1A10821C00DCFC61 /* Backend.cpp */,
+				325C57DB1A10821C00DCFC61 /* Backend.h */,
+				325C57E01A10823500DCFC61 /* LLCWrapper.cpp */,
+				325C57E11A10823500DCFC61 /* LLCWrapper.h */,
+				321084E11A186D29001FAE42 /* JSCodegen.cpp */,
+				321084E21A186D29001FAE42 /* JSCodegen.h */,
 				32E34B431A05FEFF006D34E6 /* Codegen.cpp */,
 				32E34B441A05FEFF006D34E6 /* Codegen.h */,
 				320951421A042FDA007BE338 /* Lexer.cpp */,
@@ -92,6 +113,8 @@
 				320951461A042FE9007BE338 /* Token.h */,
 				32E34B481A06013F006D34E6 /* Visitor.cpp */,
 				32E34B491A06013F006D34E6 /* Visitor.h */,
+				32C0BB231A13333A00338D33 /* ray_grammar.txt */,
+				321084DE1A186656001FAE42 /* ray_builtins.cpp */,
 			);
 			path = rayc;
 			sourceTree = "<group>";
@@ -156,6 +179,9 @@
 				3209514A1A042FF5007BE338 /* Parser.cpp in Sources */,
 				320951471A042FE9007BE338 /* Token.cpp in Sources */,
 				320951441A042FDA007BE338 /* Lexer.cpp in Sources */,
+				325C57E21A10823500DCFC61 /* LLCWrapper.cpp in Sources */,
+				325C57DC1A10821C00DCFC61 /* Backend.cpp in Sources */,
+				321084E31A186D29001FAE42 /* JSCodegen.cpp in Sources */,
 				32E34B4A1A06013F006D34E6 /* Visitor.cpp in Sources */,
 				3209513C1A042FC5007BE338 /* main.cpp in Sources */,
 				32E34B451A05FEFF006D34E6 /* Codegen.cpp in Sources */,
@@ -258,6 +284,7 @@
 					"$(inherited)",
 					/usr/local/Cellar/llvm/3.5.0/lib,
 				);
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -279,6 +306,7 @@
 					"$(inherited)",
 					/usr/local/Cellar/llvm/3.5.0/lib,
 				);
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

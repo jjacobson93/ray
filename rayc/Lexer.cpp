@@ -108,6 +108,7 @@ int RayLexer::scanIdentifier(char c) {
         default:
             if (0 == s.compare("return")) return token(RETURN);
             if (0 == s.compare("unless")) return token(UNLESS);
+            if (0 == s.compare("extern")) return token(EXTERN);
             break;
     }
     

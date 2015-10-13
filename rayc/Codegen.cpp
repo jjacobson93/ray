@@ -7,8 +7,21 @@
 //
 
 #include "Codegen.h"
+#include "JSCodegen.h"
 #include <iostream>
+#include <string>
+#include <fstream>
+#include <streambuf>
 #include <map>
+#include <clang/Lex/Preprocessor.h>
+#include <clang/Lex/PreprocessorOptions.h>
+#include <clang/Frontend/TextDiagnosticPrinter.h>
+#include <clang/Frontend/Utils.h>
+#include <clang/Lex/HeaderSearch.h>
+#include <clang/Lex/HeaderSearchOptions.h>
+#include <clang/Basic/TargetOptions.h>
+#include <clang/Basic/TargetInfo.h>
+//#include <clang-c/Index.h>
 
 /*
  * Visit the node when a `type` callback is present.
@@ -21,6 +34,7 @@ return this->visit##type((type##Node *) node, ctx);
 #define i8 llvm::IntegerType::getInt8Ty(llvm::getGlobalContext())
 #define i32 llvm::IntegerType::getInt32Ty(llvm::getGlobalContext())
 #define f64 llvm::IntegerType::getDoubleTy(llvm::getGlobalContext())
+#define StrTy llvm::PointerType::getInt8PtrTy(llvm::getGlobalContext())
 #define Array(ety, size) llvm::ArrayType(ety, size)
 #define VoidTy llvm::Type::getVoidTy(llvm::getGlobalContext())
 
@@ -46,10 +60,10 @@ void *error(std::string str) {
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
 /// the function.  This is used for mutable variables etc.
-static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction, llvm::Type *type, const std::string &VarName) {
-    llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().end());
-    return TmpB.CreateAlloca(type, 0, VarName.c_str());
-}
+//static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction, llvm::Type *type, const std::string &VarName) {
+//    llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().end());
+//    return TmpB.CreateAlloca(type, 0, VarName.c_str());
+//}
 
 llvm::IRBuilder<> Build(RayCodegenContext *ctx) {
     llvm::IRBuilder<> builder = ctx->fcx->mcx->builder();
@@ -66,12 +80,6 @@ RayCodegenContext::RayCodegenContext(llvm::BasicBlock *bb, RayCodegenScope *scop
     this->scope = new RayCodegenScope(scope);
     this->fcx = fcx;
 }
-
-//RayCodegenContext::RayCodegenContext(RayCodegenContext *ctx) {
-//    this->bb = ctx->bb;
-//    this->scope = new RayCodegenScope(ctx->scope);
-//    this->fcx = ctx->fcx;
-//}
 
 llvm::Function *RayCodegenContext::getFunction(std::string fname) {
     return this->fcx->mcx->module->getFunction(fname);
@@ -112,16 +120,161 @@ RayCodegen::RayCodegen() {
     
 }
 
-void RayCodegen::gen(Node *root) {
-    RayCodegenVisitor *visitor = new RayCodegenVisitor();
+void* RayCodegen::gen(Node *root, RayTarget target) {
+    RayCodegenVisitor *visitor;
+    if (target == RAY_TARGET_NATIVE)
+        visitor = new RayCodegenVisitor();
+    else
+        return nullptr;
+//        visitor = new RayJSCodegenVisitor();
     llvm::Module *module = new llvm::Module("test.ray", llvm::getGlobalContext());
     RayModuleContext *mctx = new RayModuleContext(module);
     RayCodegenContext *gctx = new RayCodegenContext(nullptr,
                                                     new RayCodegenScope(),
                                                     new RayFunctionContext(mctx));
+    this->builtins(gctx);
     visitor->visit(root, gctx);
+    
     module->dump();
+
+    return module;
 }
+
+
+// Builtins
+
+//void stdlibPowerInt(RayCodegenContext *ctx) {
+//    llvm::Module *mod = ctx->fcx->mcx->module;
+//    llvm::Type* paramTypes[] = { i32, i32 };
+//    std::string paramNames[] = { "base", "power" };
+//    
+//    llvm::FunctionType *fnType = llvm::FunctionType::get(i32, paramTypes, false);
+//    llvm::Function *func = llvm::Function::Create(fnType, llvm::Function::ExternalLinkage, "@__RAY_STDLIB_POW_INT", mod);
+//    
+//    int idx = 0;
+//    llvm::Function::arg_iterator ai;
+//    for (ai = func->arg_begin(); ai != func->arg_end(); ++ai, ++idx) {
+//        ai->setName(paramNames[idx]);
+//    }
+//    llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", func);
+//    llvm::BasicBlock *ifBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.body", func);
+//    llvm::BasicBlock *elseBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "if.else", func);
+//    llvm::BasicBlock *retBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "return", func);
+//    
+//    ctx->bb = entryBlock;
+//
+//    ai = func->arg_begin();
+//    llvm::Value *base = ai;
+//    ++ai;
+//    llvm::Value *power = ai;
+//    
+//    llvm::Value *retval = Build(ctx).CreateAlloca(i32, 0, "retval");
+//    llvm::Value *condval = Build(ctx).CreateICmpEQ(power, llvm::ConstantInt::get(i32, 0), "cond");
+//    
+//    Build(ctx).CreateCondBr(condval, ifBlock, elseBlock);
+//    
+//    ctx->bb = ifBlock;
+//    
+//    Build(ctx).CreateStore(llvm::ConstantInt::get(i32, 1), retval);
+//    Build(ctx).CreateBr(retBlock);
+//    
+//    ctx->bb = elseBlock;
+//    
+//    llvm::Value *dec = Build(ctx).CreateAdd(power, <#llvm::Value *RHS#>)
+//    llvm::Value *rec = Build(ctx).CreateCall(func, { base, )
+//}
+
+void RayCodegen::builtins(RayCodegenContext *ctx) {
+    llvm::Module *mod = ctx->fcx->mcx->module;
+    llvm::Function::Create(llvm::FunctionType::get(i32, { i32, i32 }, false), llvm::GlobalValue::ExternalLinkage, "__RAY_RUNTIME_POW_INT", mod);
+    llvm::Function::Create(llvm::FunctionType::get(f64, { f64, f64 }, false), llvm::GlobalValue::ExternalLinkage, "__RAY_RUNTIME_POW_FLOAT", mod);
+    
+    llvm::Function::Create(llvm::FunctionType::get(i32, { StrTy } , true), llvm::GlobalValue::ExternalLinkage, "printf", mod);
+    
+    llvm::Function::Create(llvm::FunctionType::get(i32, { StrTy } , true), llvm::GlobalValue::ExternalLinkage, "strlen", mod);
+//    llvm::Function::Create(llvm::FunctionType::get(llvm::PointerType::getInt8PtrTy(llvm::getGlobalContext()), {llvm::PointerType::getInt8PtrTy(llvm::getGlobalContext()) } , false), llvm::GlobalValue::ExternalLinkage, "print", mod);
+//    llvm::Function::Create(llvm::FunctionType::get(VoidTy, { StrTy } , false), llvm::GlobalValue::ExternalLinkage, "print", mod);
+    
+//    FILE *proc = popen("clang ray_builtins.c -S -emit-llvm -o -", "r");
+//    char buffer[255];
+//    std::string stdout;
+//    while ( fgets(buffer, 255, proc) != NULL )
+//        stdout.append(buffer);
+//    pclose(proc);
+//    std::cout << std::endl << "output: " << std::endl << stdout << std::endl;
+    
+//    clang::DiagnosticOptions diagnosticOptions;
+//    clang::TextDiagnosticPrinter tdp( llvm::outs(), &diagnosticOptions );
+//    llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagIDs( new clang::DiagnosticIDs );
+//    clang::DiagnosticsEngine diagEngine(diagIDs, &diagnosticOptions);
+//    clang::Diagnostic diag(&diagEngine);
+//    
+//    clang::FileSystemOptions    fsOptions;
+//    clang::FileManager fm( fsOptions );
+//    
+//    clang::SourceManager sm( diagEngine, fm );
+//    llvm::IntrusiveRefCntPtr< clang::HeaderSearchOptions > hsopts;
+//    clang::LangOptions langOpts;
+//    
+//    clang::TargetOptions *targetOpts = new clang::TargetOptions();
+////    targetOpts.Triple = llvm::get;
+//    clang::TargetInfo* ti = clang::TargetInfo::CreateTargetInfo( diagEngine, (const std::shared_ptr<clang::TargetOptions>)targetOpts);
+//    
+//    clang::HeaderSearch hs( hsopts, sm, diagEngine, langOpts, ti );
+//    
+//    clang::HeaderSearchOptions  headerSearchOptions;
+//    clang::ApplyHeaderSearchOptions( hs, headerSearchOptions, langOpts, ti->getTriple() );
+//    
+//    clang::PreprocessorOptions ppo;
+//    clang::ModuleLoader loader;
+//    clang::Preprocessor pp( ppo, &diagEngine, &langOpts, &sm, &hs, &loader);
+//    
+//    clang::FrontendOptions frontendOptions;
+//    clang::InitializePreprocessor( pp, ppo, headerSearchOptions, frontendOptions );
+//    
+//    pp.getBuiltinInfo().InitializeBuiltins( pp.getIdentifierTable(), langOpts );
+//    
+//
+//    std::ifstream infile("ray_builtins.c");
+//    std::string str((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
+//    llvm::MemoryBuffer* sourceBuffer = llvm::MemoryBuffer::getMemBufferCopy( str );
+//    sm.
+//    sm.createMainFileIDForMemBuffer( sourceBuffer );
+//    
+//    clang::Builtin::Context bic( *ti );
+//    clang::ASTContext astc( langOptions, sm, *ti,
+//                           pp.getIdentifierTable(),
+//                           pp.getSelectorTable(),
+//                           bic,
+//                           0 );
+//    
+//    llvm::LLVMContext   lc;
+//    clang::CodeGenOptions codeGenOptions;
+//    llvm::OwningPtr<clang::CodeGenerator> cg;
+//    cg.reset( clang::CreateLLVMCodeGen( diag, "clang_test", codeGenOptions, lc ) );
+//    if( cg == NULL ) {
+//        printf( "could not create CodeGenerator\n" );
+//        return -1;
+//    }
+//    
+//    clang::ParseAST( pp, cg.get(), astc );
+//    if( tdp.getNumErrors() ) {
+//        printf( "error parsing AST\n" );
+//        return -2;
+//    }
+//    
+//    llvm::Module* new_module = cg->ReleaseModule();
+    
+    
+//    CXIndex idx = clang_createIndex(0, 1);
+    
+//    char *args[] = { "-S", "-emit-llvm" };
+//    CXTranslationUnit tu = clang_createTranslationUnitFromSourceFile(idx, "ray_builtins.c", 2, args, 0, 0);
+//    clang_visi
+//    stdlibPowerInt(mod);
+}
+
+
 
 /***************************/
 /****** VISITOR CLASS ******/
@@ -151,13 +304,13 @@ void *RayCodegenVisitor::visit(Node *node, RayCodegenContext *ctx) {
         case RAY_NODE_ARRAY: VISIT(Array);
         case RAY_NODE_HASH: VISIT(Hash);
         case RAY_NODE_RETURN: VISIT(Return);
+        case RAY_NODE_SEQUENCE: VISIT(Sequence);
         default: return NULL;
     }
 }
 
 void *RayCodegenVisitor::visitBlock(BlockNode *node, RayCodegenContext *ctx) {
     void *retVal = nullptr;
-//    RayCodegenContext *blockCtx = new RayCodegenContext(ctx);
     
     RayCodegenScope *blockScope = new RayCodegenScope(ctx->scope);
     ctx->scope = blockScope;
@@ -179,7 +332,7 @@ void *RayCodegenVisitor::visitID(IDNode *node, RayCodegenContext *ctx) {
 //    
 //    // Load value
 //    return builder.CreateLoad(val, node->val.c_str());
-    return new std::string(node->val);
+    return node->val;
 }
 
 void *RayCodegenVisitor::visitInt(IntNode *node, RayCodegenContext *ctx) {
@@ -191,7 +344,8 @@ void *RayCodegenVisitor::visitFloat(FloatNode *node, RayCodegenContext *ctx) {
 }
 
 void *RayCodegenVisitor::visitString(StringNode *node, RayCodegenContext *ctx) {
-    return llvm::ConstantDataArray::getString(llvm::getGlobalContext(), node->val.c_str(), true);
+//    return llvm::ConstantDataArray::getString(llvm::getGlobalContext(), node->val->c_str(), true);
+    return Build(ctx).CreateGlobalStringPtr(node->val->c_str());
 }
 
 void *RayCodegenVisitor::visitChar(CharNode *node, RayCodegenContext *ctx) {
@@ -211,8 +365,10 @@ void *RayCodegenVisitor::visitType(TypeNode *node, RayCodegenContext *ctx) {
             return f64;
         } else if (tyname->compare("bool") == 0) {
             return i1;
+        } else if (tyname->compare("str") == 0) {
+            return StrTy;
         } else {
-            return llvm::Type::getVoidTy(llvm::getGlobalContext());
+            return VoidTy;
         }
     }
     
@@ -227,7 +383,7 @@ void *RayCodegenVisitor::visitCall(CallNode *node, RayCodegenContext *ctx) {
     std::string *callee = (std::string*)this->visit(node->expr, ctx);
     llvm::Function *func = ctx->getFunction(*callee);
     if (!func) return error("unknown function: " + *callee);
-    
+
     
     std::vector<llvm::Value*> args;
     if (node->args->vec->size()) {
@@ -246,13 +402,53 @@ void *RayCodegenVisitor::visitCall(CallNode *node, RayCodegenContext *ctx) {
         }
     }
     
-//    module->dump();
-    
     return Build(ctx).CreateCall(func, args);
 }
 
 void *RayCodegenVisitor::visitWhile(WhileNode *node, RayCodegenContext *ctx) {
-    return nullptr;
+    bool negate = node->negate;
+    
+    RayCodegenScope *whileScope = new RayCodegenScope(ctx->scope);
+    ctx->scope = whileScope;
+    
+    llvm::Function *func = Build(ctx).GetInsertBlock()->getParent();
+    // creat blocks
+    llvm::BasicBlock *condBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "while.cond", func, ctx->fcx->retBlock);
+    llvm::BasicBlock *bodyBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "while.body", func, ctx->fcx->retBlock);
+    llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "while.end", func, ctx->fcx->retBlock);
+    
+    Build(ctx).CreateBr(condBlock);
+    
+    ctx->bb = condBlock;
+    
+    void *cond = this->visit(node->cond, ctx);
+    if (node->cond->type == RAY_NODE_ID) {
+        cond = Build(ctx).CreateLoad((*ctx->scope)[*(std::string*)cond]);
+    }
+    
+    llvm::Value *condValue = (llvm::Value*)cond;
+    
+    if (negate) {
+        condValue = Build(ctx).CreateNot(condValue);
+    }
+    
+    // create conditional break
+    Build(ctx).CreateCondBr(condValue, bodyBlock, endBlock);
+    
+    // emit then
+    ctx->bb = bodyBlock;
+    
+    // visit block
+    this->visit(node->block, ctx);
+    Build(ctx).CreateBr(condBlock);
+    
+    // pop off 'while' scope
+    ctx->popOffScope();
+    
+    // set end block as context's bb
+    ctx->bb = endBlock;
+    
+    return endBlock;
 }
 
 void *RayCodegenVisitor::visitUnaryOp(UnaryOpNode *node, RayCodegenContext *ctx) {
@@ -355,7 +551,7 @@ void *RayCodegenVisitor::visitBinaryOp(BinaryOpNode *node, RayCodegenContext *ct
     
     // if rhs is an ID we need to load it or resolve it
     if (node->right->type == RAY_NODE_ID) {
-        if (!node->var) { // not an assign; we only want to look up previously defined variables
+//        if (!node->var) { // not an assign; we only want to look up previously defined variables
             std::string *rname = (std::string*)rhs;
             llvm::Value *ralloca = (*ctx->scope)[*rname];
             if (!ralloca) return error("variable '" + *rname + "' is undefined");
@@ -366,7 +562,7 @@ void *RayCodegenVisitor::visitBinaryOp(BinaryOpNode *node, RayCodegenContext *ct
             } else {
                 rhs = ralloca;
             }
-        }
+//        }
     }
     
     llvm::Value *lhsValue = (llvm::Value*)lhs;
@@ -374,6 +570,7 @@ void *RayCodegenVisitor::visitBinaryOp(BinaryOpNode *node, RayCodegenContext *ct
     
     llvm::Type *lhsType = lhsValue->getType();
     llvm::Type *rhsType = rhsValue->getType();
+    
     
     if (lhsType && rhsType && !lhsType->isPointerTy() && !rhsType->isPointerTy() && lhsType != rhsType) {
         return error("ray currently does not support implicit casting");
@@ -401,7 +598,7 @@ void *RayCodegenVisitor::visitBinaryOp(BinaryOpNode *node, RayCodegenContext *ct
                 return Build(ctx).CreateSRem(lhsValue, rhsValue);
             return Build(ctx).CreateFRem(lhsValue, rhsValue);
         case RAY_TOKEN_OP_POW:
-            return Build(ctx).CreateCall((lhsType->isIntegerTy() ? ctx->getFunction("__RAY_STDLIB_POW_INT") : ctx->getFunction("__RAY_STDLIB_POW_FLOAT")), { lhsValue, rhsValue });
+            return Build(ctx).CreateCall((lhsType->isIntegerTy() ? ctx->getFunction("__RAY_RUNTIME_POW_INT") : ctx->getFunction("__RAY_RUNTIME_POW_FLOAT")), { lhsValue, rhsValue });
         case RAY_TOKEN_OP_AND:
             return Build(ctx).CreateAnd(lhsValue, rhsValue);
         case RAY_TOKEN_OP_OR:
@@ -432,6 +629,7 @@ void *RayCodegenVisitor::visitBinaryOp(BinaryOpNode *node, RayCodegenContext *ct
             return Build(ctx).CreateFCmpOLE(lhsValue, rhsValue);
         case RAY_TOKEN_OP_ASSIGN: {
             if (node->var) {
+                ctx->fcx->mcx->module->dump();
                 llvm::Value *alloca = Build(ctx).CreateAlloca(rhsType, 0, *(std::string*)lhs);
                 Build(ctx).CreateStore(rhsValue, alloca);
                 (*ctx->scope)[*(std::string*)lhs] = alloca;
@@ -453,7 +651,6 @@ void *RayCodegenVisitor::visitFunction(FunctionNode *node, RayCodegenContext *ct
     std::vector<llvm::Type*> paramTypes;
     std::vector<std::string*> paramNames;
     
-//    RayCodegenContext *functionCtx = new RayCodegenContext(ctx);
     RayCodegenScope *functionScope = new RayCodegenScope(ctx->scope);
     ctx->scope = functionScope;
     
@@ -471,7 +668,6 @@ void *RayCodegenVisitor::visitFunction(FunctionNode *node, RayCodegenContext *ct
     // block
     llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", func);
     ctx->bb = entryBlock;
-//    Build(ctx).SetInsertPoint(functionCtx->bb);
     
     // create retval if return type not void
     llvm::Value *retval = nullptr;
@@ -504,6 +700,10 @@ void *RayCodegenVisitor::visitFunction(FunctionNode *node, RayCodegenContext *ct
     // body
     this->visit(node->block, ctx);
     
+    if (rettype == VoidTy) {
+        Build(ctx).CreateBr(ctx->fcx->retBlock); // break to return
+    }
+    
     ctx->bb = retBlock;
     if (rettype != VoidTy) {
         retval = Build(ctx).CreateLoad(retval);
@@ -518,7 +718,58 @@ void *RayCodegenVisitor::visitFunction(FunctionNode *node, RayCodegenContext *ct
     return func;
 }
 
+void *RayCodegenVisitor::visitExtern(ExternNode *node, RayCodegenContext *ctx) {
+    llvm::Type *rettype = (llvm::Type*)this->visit(node->fntype, ctx);
+    llvm::FunctionType *fnType;
+    
+    std::vector<llvm::Type*> paramTypes;
+    std::vector<std::string*> paramNames;
+    
+    RayCodegenScope *functionScope = new RayCodegenScope(ctx->scope);
+    ctx->scope = functionScope;
+    
+    // Get params
+    for (std::vector<Node*>::iterator it = node->params->begin(); it != node->params->end(); ++it) {
+        ValueWithType *param = (ValueWithType*)this->visit(*it, ctx);
+        paramTypes.push_back(param->type);
+        paramNames.push_back((std::string*)param->value);
+    }
+    
+    // Create function
+    fnType = llvm::FunctionType::get(rettype, paramTypes, false);
+    llvm::Function *func = llvm::Function::Create(fnType, llvm::Function::WeakAnyLinkage, node->name, ctx->fcx->mcx->module);
+
+    
+    // Name params and create argument allocas
+    int idx = 0;
+    llvm::Function::arg_iterator ai;
+    for (ai = func->arg_begin(); ai != func->arg_end(); ++ai, ++idx) {
+        std::string name = *paramNames[idx];
+        ai->setName(name);
+        
+        // create alloca
+        llvm::AllocaInst *alloca = Build(ctx).CreateAlloca(paramTypes[idx], 0, name + ".addr");
+        
+        // store initial value
+        Build(ctx).CreateStore(ai, alloca);
+        
+        // add argument to variable symbol table
+        (*ctx->scope)[name] = alloca;
+    }
+    
+    return func;
+}
+
 void *RayCodegenVisitor::visitArray(ArrayNode *node, RayCodegenContext *ctx) {
+    llvm::Value *array = nullptr;
+    llvm::Type *elemType = nullptr;
+    std::vector<llvm::Value*> vals;
+    for (std::vector<Node*>::iterator it = node->vals->begin(); it != node->vals->end(); ++it) {
+        llvm::Value *val = (llvm::Value*)this->visit(*it, ctx);
+        if (!elemType) elemType = val->getType();
+    }
+    
+//    array = llvm::ConstantArray::get(llvm::ArrayType::get(elemType, node->vals->size()), vals);
     return nullptr;
 }
 
@@ -565,6 +816,9 @@ void *RayCodegenVisitor::visitIf(IfNode *node, RayCodegenContext *ctx) {
     }
     
     llvm::Value *condValue = (llvm::Value*)cond;
+    if (node->negate) {
+        condValue = Build(ctx).CreateNot(condValue);
+    }
     
     
     // create blocks
@@ -584,8 +838,6 @@ void *RayCodegenVisitor::visitIf(IfNode *node, RayCodegenContext *ctx) {
         // create conditional break
         Build(ctx).CreateCondBr(condValue, thenBlock, endBlock);
     }
-    
-//    module->dump();
     
     // emit then
     ctx->bb = thenBlock;
@@ -618,4 +870,13 @@ void *RayCodegenVisitor::visitIf(IfNode *node, RayCodegenContext *ctx) {
 
     
     return endBlock;
+}
+
+void *RayCodegenVisitor::visitSequence(SequenceNode *node, RayCodegenContext *ctx) {
+    void *retVal = nullptr;
+    
+    for (std::vector<Node*>::iterator it = node->nodes->begin(); it != node->nodes->end(); ++it) {
+        retVal = this->visit(*it, ctx);
+    }
+    return retVal;
 }
